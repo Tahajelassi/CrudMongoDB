@@ -21,34 +21,47 @@ import java.util.HashSet;
 public class JWTAuthorizationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, FilterChain filterChain) throws ServletException, IOException {
-        httpServletResponse.addHeader("Access-Control-Allow-Origin", "*");
-        httpServletResponse.addHeader("Access-Control-Allow-Headers", "Origin, Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers,authorization");
-        httpServletResponse.addHeader("Access-Control-Expose-Headers", "Access-Control-Allow-Origin, Access-Control-Allow-Credentials, authorization");
-        httpServletResponse.addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH");
+        specifyAllowedHeaders(httpServletResponse);
         if (httpServletRequest.getMethod().equals("OPTIONS")) {
             httpServletResponse.setStatus(HttpServletResponse.SC_OK);
         } else {
             String jwtToken = httpServletRequest.getHeader(SecurityParams.HEADER_NAME);
-//            System.out.println("Token=" + jwtToken);
-            if (jwtToken == null || !jwtToken.startsWith(SecurityParams.HEADER_PREFIX)) {
-                filterChain.doFilter(httpServletRequest, httpServletResponse);
-                return;
-            }
-            JWTVerifier verifier = JWT.require(Algorithm.HMAC256(SecurityParams.SECRET)).build();
-            String jwt = jwtToken.substring(SecurityParams.HEADER_PREFIX.length());
-            DecodedJWT decodedJWT = verifier.verify(jwt);
-//            System.out.println("JWT=" + jwt);
-            String username = decodedJWT.getSubject();
-            Collection<String> roles = decodedJWT.getClaims().get("roles").asList(String.class);
-//            System.out.println("username=" + username);
-//            System.out.println("roles=" + roles);
-            Collection<GrantedAuthority> authorities = new HashSet<>();
-            roles.forEach(rn -> authorities.add(new SimpleGrantedAuthority(rn)));
-            UsernamePasswordAuthenticationToken user =
-                    new UsernamePasswordAuthenticationToken(username, null, authorities);
+            checkJwtCriteria(httpServletRequest, httpServletResponse, filterChain);
+            DecodedJWT decodedJWT = verifyAndDecodeJWT(jwtToken);
+            UsernamePasswordAuthenticationToken user = extractUserNameAndRolesFromJwtandAssociateThemToUser(decodedJWT);
             SecurityContextHolder.getContext().setAuthentication(user);
             filterChain.doFilter(httpServletRequest, httpServletResponse);
         }
+    }
+
+    //Check if Jwt is null or starts with Bearer
+    private void checkJwtCriteria(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse, FilterChain filterChain) throws IOException, ServletException {
+        String jwtToken = httpServletRequest.getHeader(SecurityParams.HEADER_NAME);
+        if (jwtToken == null || !jwtToken.startsWith(SecurityParams.HEADER_PREFIX)) {
+            filterChain.doFilter(httpServletRequest, httpServletResponse);
+        }
+    }
+
+    private DecodedJWT verifyAndDecodeJWT(String jwt) {
+        JWTVerifier verifier = JWT.require(Algorithm.HMAC256(SecurityParams.SECRET)).build();
+        String tokenAfterSubstring = jwt.substring(SecurityParams.HEADER_PREFIX.length());
+        return verifier.verify(tokenAfterSubstring);
+    }
+
+    private UsernamePasswordAuthenticationToken extractUserNameAndRolesFromJwtandAssociateThemToUser(DecodedJWT decodedJWT) {
+        String username = decodedJWT.getSubject();
+        Collection<String> roles = decodedJWT.getClaims().get("roles").asList(String.class);
+        Collection<GrantedAuthority> authorities = new HashSet<>();
+        roles.forEach(rn -> authorities.add(new SimpleGrantedAuthority(rn)));
+        return
+                new UsernamePasswordAuthenticationToken(username, null, authorities);
+    }
+
+    private void specifyAllowedHeaders(HttpServletResponse httpServletResponse) {
+        httpServletResponse.addHeader("Access-Control-Allow-Origin", "*");
+        httpServletResponse.addHeader("Access-Control-Allow-Headers", "Origin, Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers,authorization");
+        httpServletResponse.addHeader("Access-Control-Expose-Headers", "Access-Control-Allow-Origin, Access-Control-Allow-Credentials, authorization");
+        httpServletResponse.addHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,PATCH");
     }
 }
 

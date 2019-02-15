@@ -12,12 +12,22 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        http.csrf().disable();
-        http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
-        http.authorizeRequests().antMatchers("/categories/**").hasAnyAuthority("ROLE_ADMIN");
-        http.authorizeRequests().antMatchers("/products/**").hasAnyAuthority("ROLE_USER");
-        http.authorizeRequests().anyRequest().authenticated();
-        http.addFilterBefore(new JWTAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
+        http
+                .csrf()
+                .disable();
+        http
+                .sessionManagement()
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+        http
+                .authorizeRequests()
+                .antMatchers("/categories/**")
+                .hasAnyAuthority("ROLE_ADMIN");
+        http
+                .authorizeRequests().antMatchers("/products/**").hasAnyAuthority("ROLE_USER");
+        http
+                .authorizeRequests().anyRequest().authenticated();
+        http
+                .addFilterBefore(new JWTAuthorizationFilter(), UsernamePasswordAuthenticationFilter.class);
 
     }
 }
